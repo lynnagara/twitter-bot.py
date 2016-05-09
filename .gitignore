@@ -2,4 +2,4 @@ __pycache__
 venv
 words
 starting_words.txt
-.ini
+settings.ini

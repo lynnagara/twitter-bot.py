@@ -2,23 +2,21 @@ import re
 import os
 from pathlib import Path
 import pickle
-import binascii
-
-def to_file_name(text):
-  return binascii.hexlify(text.encode()).decode('utf-8')
-
-def from_file_name():
-  return binascii.unhexlify(file_name).decode('utf-8')
+import utilities
 
 def sanitize_tweet(tweet):
-  return strip_multi_spaces(strip_urls(tweet))
-
-def strip_forward_slash(text):
-  pattern = r'/'
-  return re.sub(pattern, '', text)
+  return strip_multi_spaces(strip_quotes(replace_space_chars(strip_urls(tweet)))).rstrip()
 
 def strip_multi_spaces(text):
   pattern = r' +'
+  return re.sub(pattern, ' ', text)
+
+def strip_quotes(text):
+  pattern = r'"'
+  return re.sub(pattern, '', text)
+
+def replace_space_chars(text):
+  pattern = r'\n|\t'
   return re.sub(pattern, ' ', text)
 
 def strip_urls(text):
@@ -31,7 +29,7 @@ def save_starting_word(tweet):
   sanitized_text = sanitize_tweet(text)
   # Just save the starting word in the text file unless it starts special chars
   if (len(text) > 0 and text[0] != '@' and text[0] != '.' and text[0] != '#'):
-    first_word = text.split(' ')[0]
+    first_word = text.split()[0]
     target = open(filename, 'a')
     target.write(first_word + '\n')
 
@@ -39,7 +37,7 @@ def save_starting_word(tweet):
 def get_word_groups(text):
   word_groups = []
 
-  words = text.split(' ')
+  words = text.split()
 
   for idx, word in enumerate(words):
     # Add groups of two words
@@ -63,7 +61,7 @@ def create_words_folder():
 def save_word_group(word_group):
   # Just try to create the folder
   create_words_folder()
-  filename = to_file_name(word_group[0])
+  filename = utilities.to_file_name(word_group[0])
   file_exists = Path('words/' + filename).exists()
 
   # Update store with new words
@@ -102,3 +100,27 @@ def build_dictionary(tweet):
 
   for word_group in word_groups:
     save_word_group(word_group)
+
+
+def save_ending(filename_as_words, key):
+  end_of_tweet = utilities.end_of_tweet_marker()
+  filename = utilities.to_file_name(filename_as_words)
+  file_exists = Path('words/' + filename).exists()
+  if (file_exists):
+    data = pickle.load(open('words/' + filename, 'rb+'))
+    if key in data:
+      if end_of_tweet in data[key]:
+        data[key][end_of_tweet] += 1
+      else:
+        data[key][end_of_tweet] = 1
+      pickle.dump(data, open('words/' + filename, 'wb'))
+
+def save_tweet_endings(tweet):
+  sanitized_text = sanitize_tweet(tweet['text'])
+  words = sanitized_text.split()
+  if (len(words) > 1):
+    save_ending(words[-2], str.join(' ', words[-2:]))
+  if (len(words) > 0):
+    save_ending(words[-1], words[-1])
+
+
